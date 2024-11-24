@@ -36,6 +36,9 @@ using tic_tac_toe::CellState;
 using tic_tac_toe::PlayerToState;
 using tic_tac_toe::StateToString;
 
+std::vector<bool> x_guessed_;
+std::vector<bool> o_guessed_;
+
 // Facts about the game.
 const GameType kGameType{
     /*short_name=*/"phantom_ttt",
@@ -93,10 +96,13 @@ ImperfectRecallPTTTGame::ImperfectRecallPTTTGame(const GameParameters& params)
     : PhantomTTTGame(params, kImperfectRecallGameType) {}
 
 PhantomTTTState::PhantomTTTState(std::shared_ptr<const Game> game,
-                                 ObservationType obs_type)
+                                ObservationType obs_type)
     : State(game), state_(game), obs_type_(obs_type) {
   std::fill(begin(x_view_), end(x_view_), CellState::kEmpty);
   std::fill(begin(o_view_), end(o_view_), CellState::kEmpty);
+  x_guessed_.resize(kNumCells, false);
+  o_guessed_.resize(kNumCells, false);
+  
   if (obs_type_ == ObservationType::kRevealNumTurns) {
     // Reserve 0 for the player and 10 as "I don't know."
     bits_per_action_ = kNumCells + 2;
@@ -110,18 +116,23 @@ PhantomTTTState::PhantomTTTState(std::shared_ptr<const Game> game,
 }
 
 void PhantomTTTState::DoApplyAction(Action move) {
-  // Current player's view.
   Player cur_player = CurrentPlayer();
   auto& cur_view = cur_player == 0 ? x_view_ : o_view_;
+  auto& cur_guessed = cur_player == 0 ? x_guessed_ : o_guessed_;
 
-  // Two cases: either there is a mark already there, or not.
-  if (state_.BoardAt(move) == CellState::kEmpty) {
-    // No mark on board, so play this normally.
+  // Mark this spot as guessed
+  cur_guessed[move] = true;
+
+  // If there's an opponent's mark, lose turn but update view
+  if (state_.BoardAt(move) == PlayerToState(1 - cur_player)) {
+    cur_view[move] = state_.BoardAt(move);
+    state_.SetCurrentPlayer(1 - cur_player);  // Switch players
+  } 
+  // If empty, play normally
+  else if (state_.BoardAt(move) == CellState::kEmpty) {
     state_.ApplyAction(move);
   }
 
-  // Update current player's view, and action sequence.
-  SPIEL_CHECK_EQ(cur_view[move], CellState::kEmpty);
   cur_view[move] = state_.BoardAt(move);
   action_sequence_.push_back(std::pair<int, Action>(cur_player, move));
 
@@ -134,9 +145,10 @@ std::vector<Action> PhantomTTTState::LegalActions() const {
   std::vector<Action> moves;
   const Player player = CurrentPlayer();
   const auto& cur_view = player == 0 ? x_view_ : o_view_;
+  const auto& cur_guessed = player == 0 ? x_guessed_ : o_guessed_;
 
   for (Action move = 0; move < kNumCells; ++move) {
-    if (cur_view[move] == CellState::kEmpty) {
+    if (cur_view[move] == CellState::kEmpty && !cur_guessed[move]) {
       moves.push_back(move);
     }
   }

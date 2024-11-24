@@ -80,6 +80,8 @@ class PhantomTTTState : public State {
   std::string ViewToString(Player player) const;
 
  private:
+  std::vector<bool> x_guessed_;  // Add this line
+  std::vector<bool> o_guessed_;  // Add this line
   std::string ActionSequenceToString(Player player) const;
 
   tic_tac_toe::TicTacToeState state_;
