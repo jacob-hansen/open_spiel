@@ -38,11 +38,13 @@ flags.DEFINE_integer("print_freq", 1000,
 
 def main(_):
   game = pyspiel.load_game(FLAGS.game, {})
+  print("Loaded game: ", game)
   if FLAGS.sampling == "external":
     cfr_solver = external_mccfr.ExternalSamplingSolver(
         game, external_mccfr.AverageType.SIMPLE)
   else:
     cfr_solver = outcome_mccfr.OutcomeSamplingSolver(game)
+  print("Loaded solver")
   for i in range(FLAGS.iterations):
     cfr_solver.iteration()
     if i % FLAGS.print_freq == 0:
